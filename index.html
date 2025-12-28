@@ -176,20 +176,33 @@
         }
 
         function notifyArrival() {
-            // Scegli mostro
+            // 1. Scelta del mostro (logica esistente)
             let pool = [];
             for(let id in DB_SPECIE) { for(let i=0; i<DB_SPECIE[id].r; i++) pool.push(id); }
             currentMonsterId = pool[Math.floor(Math.random() * pool.length)];
 
-            // Notifica fuori app via Service Worker
+            // 2. Tenta la notifica visiva (Service Worker)
             if (navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SHOW_NOTIFICATION',
-                    title: 'Segnale Radar!',
-                    body: 'Un mostro è entrato nell\'oblò! Catturalo!'
+                    title: '⚠️ MOSTRUO RILEVATO!',
+                    body: 'Corri! Un esemplare di ' + DB_SPECIE[currentMonsterId].n + ' è vicino!'
                 });
             }
 
+            // 3. Feedback acustico e vibrazione (funziona se il browser non è "congelato")
+            try {
+                if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500]);
+                let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+                osc.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } catch(e) { console.log("Audio bloccato dal browser"); }
+
+            // 4. Aggiorna interfaccia
             document.getElementById('radar-container').style.display = 'none';
             const monsterImg = document.getElementById('target-monster');
             monsterImg.src = `${REPO_BASE_URL}${currentMonsterId}.png`;
