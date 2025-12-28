@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mostri GO - RPG Silhouette</title>
+    <title>Mostri GO - Ultra Edition</title>
     <style>
         :root {
             --primary: #4facfe; --secondary: #00f2fe;
@@ -47,22 +47,17 @@
         }
 
         #target-monster { position: absolute; width: 150px; height: 150px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; object-fit: contain; }
-        
         #pokeball { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; z-index: 20; cursor: pointer; display: none; }
 
-        /* --- ANIMAZIONI CATTURA --- */
+        /* --- ANIMAZIONI --- */
         .ball-throwing { transition: transform 0.6s cubic-bezier(0.1, 0.5, 0.5, 1) !important; }
-        
         @keyframes slowShake {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             25% { transform: translate(-50%, -50%) rotate(-25deg); }
             75% { transform: translate(-50%, -50%) rotate(25deg); }
             100% { transform: translate(-50%, -50%) rotate(0deg); }
         }
-        .ball-shake-center { 
-            animation: slowShake 1.2s ease-in-out infinite; 
-            top: 50% !important; bottom: auto !important;
-        }
+        .ball-shake-center { animation: slowShake 1.2s ease-in-out infinite; top: 50% !important; bottom: auto !important; }
 
         /* --- MODALI --- */
         .modal {
@@ -72,26 +67,16 @@
         }
 
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        
-        .card {
-            background: #f1f2f6; border-radius: 15px; padding: 10px;
-            display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd;
-        }
+        .card { background: #f1f2f6; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd; }
         .card img { width: 70px; height: 70px; object-fit: contain; }
-        
         .silhouette { filter: brightness(0); opacity: 0.6; }
 
         .stats { font-size: 0.7rem; text-align: center; margin-top: 5px; line-height: 1.2; }
-        .type-tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; color: white; margin: 1px; display: inline-block; }
-        
+        .type-tag { font-size: 0.55rem; padding: 2px 5px; border-radius: 4px; color: white; margin: 1px; display: inline-block; text-transform: uppercase; }
         .gender-m { color: #0984e3; font-weight: bold; } 
         .gender-f { color: #fd79a8; font-weight: bold; }
 
-        .btn-release {
-            background: var(--red); color: white; border: none; padding: 6px 12px;
-            border-radius: 8px; margin-top: 8px; cursor: pointer; font-size: 0.8rem; width: 100%;
-        }
-
+        .btn-release { background: var(--red); color: white; border: none; padding: 6px; border-radius: 8px; margin-top: 8px; cursor: pointer; width: 100%; }
         .tab-bar { display: flex; gap: 10px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: #eee; border-radius: 12px; font-weight: bold; }
         .tab-active { background: var(--blue); color: white; }
@@ -105,9 +90,10 @@
 </head>
 <body>
 
-    <div id="menu-iniziale" style="position:fixed; width:100%; height:100%; background:var(--primary); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
-        <h1>MOSTRI GO</h1>
-        <button class="btn-play" onclick="initGame()" style="padding:15px 40px; border-radius:30px; border:none; background:var(--yellow); font-weight:bold; font-size:1.2rem; cursor:pointer;">AVVIA RADAR</button>
+    <div id="menu-iniziale" style="position:fixed; width:100%; height:100%; background:var(--primary); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
+        <h1 style="font-size:3rem; margin-bottom:10px;">MOSTRI GO</h1>
+        <p style="margin-bottom:30px;">Attiva il radar e metti il telefono in tasca!</p>
+        <button onclick="initGame()" style="padding:20px 50px; border-radius:40px; border:none; background:var(--yellow); color:var(--blue); font-weight:bold; font-size:1.5rem; cursor:pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">GIOCA</button>
     </div>
 
     <div id="game-container">
@@ -118,7 +104,7 @@
             <video id="camera-stream" autoplay playsinline></video>
             <div id="radar-container">
                 <div style="width:70px; height:70px; border:3px solid var(--green); border-radius:50%; animation: pulse 2s infinite;"></div>
-                <p style="margin-top:10px; letter-spacing: 2px;">RICERCA...</p>
+                <p style="margin-top:10px; letter-spacing: 2px; font-weight:bold;">RADAR ATTIVO</p>
             </div>
             <img id="target-monster" src="" style="display:none;">
         </div>
@@ -127,17 +113,18 @@
 
     <div id="collection-modal" class="modal">
         <div class="tab-bar">
-            <button id="tab-squad" class="tab-btn tab-active" onclick="switchTab('squad')">SQUADRA (0/6)</button>
-            <button id="tab-dex" class="tab-btn" onclick="switchTab('dex')">POKEDEX</button>
+            <button id="tab-squad" class="tab-btn tab-active" onclick="switchTab('squad')">SQUADRA</button>
+            <button id="tab-dex" class="tab-btn" onclick="switchTab('dex')">DEX</button>
         </div>
         <div id="squad-view" class="grid"></div>
         <div id="dex-view" class="grid" style="display:none;"></div>
-        <button onclick="toggleCollection()" style="width:100%; margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:12px; cursor:pointer;">TORNA AL GIOCO</button>
+        <button onclick="toggleCollection()" style="width:100%; margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:12px;">CHIUDI</button>
     </div>
 
     <script>
         const REPO_BASE_URL = "https://raw.githubusercontent.com/Ajbajibanpm/DispensaMostri/main/";
         
+        // --- DATABASE SPECIE ---
         const DB_SPECIE = {
             1: { n: "Chtulino", t: ["acqua", "buio"], hp: [40,60], fz: [30,50], r: 20 },
             2: { n: "Fiammifero", t: ["fuoco"], hp: [30,55], fz: [50,75], r: 40 },
@@ -165,15 +152,17 @@
 
         let squadra = JSON.parse(localStorage.getItem('mostri_squadra')) || [];
         let pokedex = JSON.parse(localStorage.getItem('mostri_dex')) || [];
-
-        // Fix per vecchi dati incompatibili
-        if(squadra.length > 0 && !squadra[0].specie) { squadra = []; pokedex = []; localStorage.clear(); }
-
         let currentMonsterId = null;
         let videoStream = null;
         let isAR = true;
 
+        // REGISTRAZIONE SERVICE WORKER
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
         function initGame() {
+            Notification.requestPermission();
             document.getElementById('menu-iniziale').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
             startSearchPhase();
@@ -183,18 +172,26 @@
             document.getElementById('radar-container').style.display = 'flex';
             document.getElementById('target-monster').style.display = 'none';
             document.getElementById('pokeball').style.display = 'none';
-            setTimeout(notifyArrival, (Math.floor(Math.random() * 10) + 5) * 1000);
+            setTimeout(notifyArrival, (Math.floor(Math.random() * 15) + 10) * 1000);
         }
 
         function notifyArrival() {
-            document.getElementById('radar-container').style.display = 'none';
-            const monsterImg = document.getElementById('target-monster');
-            
-            // Apparizione pesata per rarità
+            // Scegli mostro
             let pool = [];
             for(let id in DB_SPECIE) { for(let i=0; i<DB_SPECIE[id].r; i++) pool.push(id); }
             currentMonsterId = pool[Math.floor(Math.random() * pool.length)];
-            
+
+            // Notifica fuori app via Service Worker
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'SHOW_NOTIFICATION',
+                    title: 'Segnale Radar!',
+                    body: 'Un mostro è entrato nell\'oblò! Catturalo!'
+                });
+            }
+
+            document.getElementById('radar-container').style.display = 'none';
+            const monsterImg = document.getElementById('target-monster');
             monsterImg.src = `${REPO_BASE_URL}${currentMonsterId}.png`;
             monsterImg.style.display = 'block';
             monsterImg.style.opacity = '1';
@@ -253,63 +250,53 @@
             const sp = DB_SPECIE[currentMonsterId];
             const isM = Math.random() > 0.5;
             const nuovoMostro = {
-                uid: Date.now(),
-                id: currentMonsterId,
-                specie: sp.n,
+                uid: Date.now(), id: currentMonsterId, specie: sp.n,
                 soprannome: isM ? NOMI_M[Math.floor(Math.random()*NOMI_M.length)] : NOMI_F[Math.floor(Math.random()*NOMI_F.length)],
                 sesso: isM ? 'M' : 'F',
                 hp: Math.floor(Math.random() * (sp.hp[1]-sp.hp[0]+1)) + sp.hp[0],
                 fz: Math.floor(Math.random() * (sp.fz[1]-sp.fz[0]+1)) + sp.fz[0],
-                tipi: sp.t,
-                data: new Date().toLocaleDateString()
+                tipi: sp.t
             };
 
             if(!pokedex.includes(parseInt(currentMonsterId))) pokedex.push(parseInt(currentMonsterId));
             squadra.push(nuovoMostro);
-            saveData();
-            
-            if (squadra.length > 6) { toggleCollection('squad'); } 
-            else { startSearchPhase(); }
-        }
-
-        function saveData() {
             localStorage.setItem('mostri_squadra', JSON.stringify(squadra));
             localStorage.setItem('mostri_dex', JSON.stringify(pokedex));
+            
+            if (squadra.length > 6) toggleCollection('squad');
+            else startSearchPhase();
         }
 
         function releaseMonster(uid, nome) {
-            if(confirm(`Sei sicuro di voler liberare ${nome}?`)) {
+            if(confirm(`Liberare ${nome}?`)) {
                 squadra = squadra.filter(m => m.uid !== uid);
-                saveData();
+                localStorage.setItem('mostri_squadra', JSON.stringify(squadra));
                 updateViews();
                 if(squadra.length <= 6) startSearchPhase();
             }
         }
 
         function updateViews() {
-            const squadView = document.getElementById('squad-view');
-            const dexView = document.getElementById('dex-view');
             document.getElementById('tab-squad').innerText = `SQUADRA (${squadra.length}/6)`;
-
-            squadView.innerHTML = squadra.map(m => `
+            document.getElementById('squad-view').innerHTML = squadra.map(m => `
                 <div class="card">
                     <img src="${REPO_BASE_URL}${m.id}.png">
-                    <div style="font-weight:bold; color:var(--blue)">${m.soprannome}</div>
-                    <div style="font-size:0.65rem; color:#666">${m.specie} <span class="gender-${m.sesso.toLowerCase()}">${m.sesso==='M'?'♂':'♀'}</span></div>
+                    <strong>${m.soprannome}</strong>
+                    <div class="stats">${m.specie} <span class="gender-${m.sesso.toLowerCase()}">${m.sesso==='M'?'♂':'♀'}</span></div>
                     <div>${m.tipi.map(t => `<span class="type-tag t-${t}">${t}</span>`).join('')}</div>
                     <div class="stats">HP: ${m.hp} | FZ: ${m.fz}</div>
                     <button class="btn-release" onclick="releaseMonster(${m.uid}, '${m.soprannome}')">LIBERA</button>
                 </div>
             `).join('');
 
-            dexView.innerHTML = Object.keys(DB_SPECIE).map(id => {
+            document.getElementById('dex-view').innerHTML = Object.keys(DB_SPECIE).map(id => {
                 const s = DB_SPECIE[id];
                 const scoperto = pokedex.includes(parseInt(id));
                 return `
                     <div class="card">
                         <img src="${REPO_BASE_URL}${id}.png" class="${scoperto ? '' : 'silhouette'}">
                         <strong>${scoperto ? s.n : '???'}</strong>
-                        <div class="stats">${scoperto ? s.t.join('/') : 'Tipo: ???'}</div>
+                        <div class="stats">${scoperto ? s.t.join('/') : '???'}</div>
                     </div>
                 `;
             }).join('');
@@ -323,11 +310,10 @@
             updateViews();
         }
 
-        function toggleCollection(forceTab) {
+        function toggleCollection(tab) {
             const m = document.getElementById('collection-modal');
             m.style.display = m.style.display === 'block' ? 'none' : 'block';
-            if(forceTab) switchTab(forceTab);
-            else updateViews();
+            if(tab) switchTab(tab); else updateViews();
         }
 
         document.getElementById('pokeball').onclick = throwBall;
