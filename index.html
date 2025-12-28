@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mostri GO - Ultra Edition</title>
+    <title>Mostri GO - Final RPG</title>
     <style>
         :root {
             --primary: #4facfe; --secondary: #00f2fe;
@@ -13,8 +13,7 @@
         body, html {
             margin: 0; padding: 0; height: 100%;
             font-family: 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden; background-color: #f0f0f0;
-            touch-action: none;
+            overflow: hidden; background-color: #f0f0f0; touch-action: none;
         }
 
         /* --- UI GIOCO --- */
@@ -46,18 +45,34 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
         }
 
-        #target-monster { position: absolute; width: 150px; height: 150px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; object-fit: contain; }
+        /* --- ANIMAZIONE LOTTA --- */
+        #target-monster { 
+            position: absolute; width: 150px; height: 150px; 
+            top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            z-index: 10; object-fit: contain; pointer-events: none;
+            display: none;
+        }
+
+        @keyframes fighting {
+            0% { transform: translate(-50%, -50%) translateY(0) rotate(0deg); }
+            25% { transform: translate(-48%, -52%) rotate(3deg); }
+            50% { transform: translate(-52%, -48%) rotate(-3deg); }
+            75% { transform: translate(-49%, -51%) rotate(2deg); }
+            100% { transform: translate(-50%, -50%) rotate(0deg); }
+        }
+        .monster-moving { animation: fighting 2.5s ease-in-out infinite; }
+        
         #pokeball { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; z-index: 20; cursor: pointer; display: none; }
 
-        /* --- ANIMAZIONI --- */
+        /* --- ANIMAZIONI PALLA --- */
         .ball-throwing { transition: transform 0.6s cubic-bezier(0.1, 0.5, 0.5, 1) !important; }
+        .ball-shake-center { animation: slowShake 1.2s ease-in-out infinite; top: 50% !important; bottom: auto !important; }
         @keyframes slowShake {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             25% { transform: translate(-50%, -50%) rotate(-25deg); }
             75% { transform: translate(-50%, -50%) rotate(25deg); }
             100% { transform: translate(-50%, -50%) rotate(0deg); }
         }
-        .ball-shake-center { animation: slowShake 1.2s ease-in-out infinite; top: 50% !important; bottom: auto !important; }
 
         /* --- MODALI --- */
         .modal {
@@ -65,35 +80,25 @@
             width: 95%; height: 85%; background: white; border-radius: 20px; border: 4px solid var(--blue);
             padding: 15px; box-sizing: border-box; overflow-y: auto;
         }
-
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .card { background: #f1f2f6; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd; }
         .card img { width: 70px; height: 70px; object-fit: contain; }
         .silhouette { filter: brightness(0); opacity: 0.6; }
-
-        .stats { font-size: 0.7rem; text-align: center; margin-top: 5px; line-height: 1.2; }
         .type-tag { font-size: 0.55rem; padding: 2px 5px; border-radius: 4px; color: white; margin: 1px; display: inline-block; text-transform: uppercase; }
-        .gender-m { color: #0984e3; font-weight: bold; } 
-        .gender-f { color: #fd79a8; font-weight: bold; }
-
-        .btn-release { background: var(--red); color: white; border: none; padding: 6px; border-radius: 8px; margin-top: 8px; cursor: pointer; width: 100%; }
-        .tab-bar { display: flex; gap: 10px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: #eee; border-radius: 12px; font-weight: bold; }
-        .tab-active { background: var(--blue); color: white; }
-
-        /* Colori Elementi */
         .t-erba { background: #78C850; } .t-fuoco { background: #F08030; }
         .t-acqua { background: #6890F0; } .t-elettro { background: #F8D030; color: #000; }
         .t-psico { background: #F85888; } .t-buio { background: #705848; }
         .t-roccia { background: #B8A038; } .t-spettro { background: #705898; }
+
+        .btn-play { padding:15px 50px; border-radius:30px; border:none; background:var(--yellow); color:var(--blue); font-weight:bold; font-size:1.5rem; cursor:pointer; }
     </style>
 </head>
 <body>
 
     <div id="menu-iniziale" style="position:fixed; width:100%; height:100%; background:var(--primary); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
-        <h1 style="font-size:3rem; margin-bottom:10px;">MOSTRI GO</h1>
-        <p style="margin-bottom:30px;">Attiva il radar e metti il telefono in tasca!</p>
-        <button onclick="initGame()" style="padding:20px 50px; border-radius:40px; border:none; background:var(--yellow); color:var(--blue); font-weight:bold; font-size:1.5rem; cursor:pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">GIOCA</button>
+        <h1 style="font-size:3rem; margin-bottom:20px;">MOSTRI GO</h1>
+        <button class="btn-play" onclick="initGame()">GIOCA</button>
+        <p style="margin-top:20px; font-size:0.9rem; opacity:0.8;">Attiva il radar e catturali tutti!</p>
     </div>
 
     <div id="game-container">
@@ -104,9 +109,9 @@
             <video id="camera-stream" autoplay playsinline></video>
             <div id="radar-container">
                 <div style="width:70px; height:70px; border:3px solid var(--green); border-radius:50%; animation: pulse 2s infinite;"></div>
-                <p style="margin-top:10px; letter-spacing: 2px; font-weight:bold;">RADAR ATTIVO</p>
+                <p style="margin-top:10px; letter-spacing: 2px;">RICERCA...</p>
             </div>
-            <img id="target-monster" src="" style="display:none;">
+            <img id="target-monster" src="" class="monster-moving">
         </div>
         <img id="pokeball" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png">
     </div>
@@ -124,7 +129,6 @@
     <script>
         const REPO_BASE_URL = "https://raw.githubusercontent.com/Ajbajibanpm/DispensaMostri/main/";
         
-        // --- DATABASE SPECIE ---
         const DB_SPECIE = {
             1: { n: "Chtulino", t: ["acqua", "buio"], hp: [40,60], fz: [30,50], r: 20 },
             2: { n: "Fiammifero", t: ["fuoco"], hp: [30,55], fz: [50,75], r: 40 },
@@ -156,13 +160,20 @@
         let videoStream = null;
         let isAR = true;
 
-        // REGISTRAZIONE SERVICE WORKER
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 
-        function initGame() {
-            Notification.requestPermission();
+        async function initGame() {
+            // Chiede il permesso notifiche al clic del Play
+            if ("Notification" in window) {
+                Notification.requestPermission();
+            }
+            
+            // Attiva AudioContext (necessario per suonare al primo evento)
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx.resume();
+            } catch(e) {}
+
             document.getElementById('menu-iniziale').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
             startSearchPhase();
@@ -176,33 +187,22 @@
         }
 
         function notifyArrival() {
-            // 1. Scelta del mostro (logica esistente)
             let pool = [];
             for(let id in DB_SPECIE) { for(let i=0; i<DB_SPECIE[id].r; i++) pool.push(id); }
             currentMonsterId = pool[Math.floor(Math.random() * pool.length)];
 
-            // 2. Tenta la notifica visiva (Service Worker)
             if (navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SHOW_NOTIFICATION',
-                    title: '⚠️ MOSTRUO RILEVATO!',
-                    body: 'Corri! Un esemplare di ' + DB_SPECIE[currentMonsterId].n + ' è vicino!'
+                    title: 'Segnale Radar!',
+                    body: 'Un mostro è entrato nel tuo raggio!'
                 });
             }
 
-            // 3. Feedback acustico e vibrazione (funziona se il browser non è "congelato")
             try {
-                if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500]);
-                let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                let osc = audioCtx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-                osc.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            } catch(e) { console.log("Audio bloccato dal browser"); }
+                if (window.navigator.vibrate) window.navigator.vibrate([400, 100, 400]);
+            } catch(e) {}
 
-            // 4. Aggiorna interfaccia
             document.getElementById('radar-container').style.display = 'none';
             const monsterImg = document.getElementById('target-monster');
             monsterImg.src = `${REPO_BASE_URL}${currentMonsterId}.png`;
@@ -220,12 +220,7 @@
             } catch (e) {}
         }
 
-        function stopCamera() {
-            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-            document.getElementById('camera-stream').style.opacity = "0";
-            videoStream = null;
-        }
-
+        function stopCamera() { if (videoStream) videoStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-stream').style.opacity = "0"; videoStream = null; }
         function toggleCamera() { if(videoStream) { stopCamera(); isAR = false; } else startCamera(); }
 
         function throwBall() {
@@ -262,7 +257,7 @@
 
             const sp = DB_SPECIE[currentMonsterId];
             const isM = Math.random() > 0.5;
-            const nuovoMostro = {
+            const nuovo = {
                 uid: Date.now(), id: currentMonsterId, specie: sp.n,
                 soprannome: isM ? NOMI_M[Math.floor(Math.random()*NOMI_M.length)] : NOMI_F[Math.floor(Math.random()*NOMI_F.length)],
                 sesso: isM ? 'M' : 'F',
@@ -272,7 +267,7 @@
             };
 
             if(!pokedex.includes(parseInt(currentMonsterId))) pokedex.push(parseInt(currentMonsterId));
-            squadra.push(nuovoMostro);
+            squadra.push(nuovo);
             localStorage.setItem('mostri_squadra', JSON.stringify(squadra));
             localStorage.setItem('mostri_dex', JSON.stringify(pokedex));
             
@@ -290,26 +285,23 @@
         }
 
         function updateViews() {
-            document.getElementById('tab-squad').innerText = `SQUADRA (${squadra.length}/6)`;
             document.getElementById('squad-view').innerHTML = squadra.map(m => `
                 <div class="card">
                     <img src="${REPO_BASE_URL}${m.id}.png">
                     <strong>${m.soprannome}</strong>
-                    <div class="stats">${m.specie} <span class="gender-${m.sesso.toLowerCase()}">${m.sesso==='M'?'♂':'♀'}</span></div>
+                    <div style="font-size:0.7rem;">${m.specie} <span style="color:${m.sesso==='M'?'#0984e3':'#fd79a8'}">${m.sesso==='M'?'♂':'♀'}</span></div>
                     <div>${m.tipi.map(t => `<span class="type-tag t-${t}">${t}</span>`).join('')}</div>
-                    <div class="stats">HP: ${m.hp} | FZ: ${m.fz}</div>
+                    <div style="font-size:0.7rem;">HP: ${m.hp} | FZ: ${m.fz}</div>
                     <button class="btn-release" onclick="releaseMonster(${m.uid}, '${m.soprannome}')">LIBERA</button>
                 </div>
             `).join('');
 
             document.getElementById('dex-view').innerHTML = Object.keys(DB_SPECIE).map(id => {
-                const s = DB_SPECIE[id];
-                const scoperto = pokedex.includes(parseInt(id));
+                const s = DB_SPECIE[id]; const scoperto = pokedex.includes(parseInt(id));
                 return `
                     <div class="card">
                         <img src="${REPO_BASE_URL}${id}.png" class="${scoperto ? '' : 'silhouette'}">
                         <strong>${scoperto ? s.n : '???'}</strong>
-                        <div class="stats">${scoperto ? s.t.join('/') : '???'}</div>
                     </div>
                 `;
             }).join('');
@@ -325,7 +317,7 @@
 
         function toggleCollection(tab) {
             const m = document.getElementById('collection-modal');
-            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+            m.style.display = (m.style.display === 'block') ? 'none' : 'block';
             if(tab) switchTab(tab); else updateViews();
         }
 
