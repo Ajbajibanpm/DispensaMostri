@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mostri GO - Final RPG</title>
+    <title>Mostri GO - Gotcha Edition</title>
     <style>
         :root {
             --primary: #4facfe; --secondary: #00f2fe;
@@ -54,23 +54,22 @@
         }
 
         @keyframes fighting {
-            0% { transform: translate(-50%, -50%) translateY(0) rotate(0deg); }
-            25% { transform: translate(-48%, -52%) rotate(3deg); }
-            50% { transform: translate(-52%, -48%) rotate(-3deg); }
-            75% { transform: translate(-49%, -51%) rotate(2deg); }
-            100% { transform: translate(-50%, -50%) rotate(0deg); }
+            0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            25% { transform: translate(-48%, -52%) scale(1.05) rotate(3deg); }
+            50% { transform: translate(-52%, -48%) scale(0.95) rotate(-3deg); }
+            75% { transform: translate(-49%, -51%) scale(1.02) rotate(2deg); }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
         }
-        .monster-moving { animation: fighting 2.5s ease-in-out infinite; }
+        .monster-moving { animation: fighting 2s ease-in-out infinite; }
         
         #pokeball { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; z-index: 20; cursor: pointer; display: none; }
 
-        /* --- ANIMAZIONI PALLA --- */
         .ball-throwing { transition: transform 0.6s cubic-bezier(0.1, 0.5, 0.5, 1) !important; }
         .ball-shake-center { animation: slowShake 1.2s ease-in-out infinite; top: 50% !important; bottom: auto !important; }
         @keyframes slowShake {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
-            25% { transform: translate(-50%, -50%) rotate(-25deg); }
-            75% { transform: translate(-50%, -50%) rotate(25deg); }
+            25% { transform: translate(-50%, -50%) rotate(-20deg); }
+            75% { transform: translate(-50%, -50%) rotate(20deg); }
             100% { transform: translate(-50%, -50%) rotate(0deg); }
         }
 
@@ -95,10 +94,12 @@
 </head>
 <body>
 
+    <audio id="audio-gotcha" src="https://www.myinstants.com/media/sounds/pokemon-gotcha.mp3" preload="auto"></audio>
+
     <div id="menu-iniziale" style="position:fixed; width:100%; height:100%; background:var(--primary); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
         <h1 style="font-size:3rem; margin-bottom:20px;">MOSTRI GO</h1>
         <button class="btn-play" onclick="initGame()">GIOCA</button>
-        <p style="margin-top:20px; font-size:0.9rem; opacity:0.8;">Attiva il radar e catturali tutti!</p>
+        <p style="margin-top:20px; font-size:0.9rem; opacity:0.8;">Consenti le notifiche se richiesto!</p>
     </div>
 
     <div id="game-container">
@@ -163,16 +164,15 @@
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 
         async function initGame() {
-            // Chiede il permesso notifiche al clic del Play
+            // Sblocca audio e chiedi permessi
+            document.getElementById('audio-gotcha').play().then(() => {
+                document.getElementById('audio-gotcha').pause();
+                document.getElementById('audio-gotcha').currentTime = 0;
+            }).catch(e => console.log("Audio sbloccato dopo interazione"));
+
             if ("Notification" in window) {
-                Notification.requestPermission();
+                await Notification.requestPermission();
             }
-            
-            // Attiva AudioContext (necessario per suonare al primo evento)
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioCtx.resume();
-            } catch(e) {}
 
             document.getElementById('menu-iniziale').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
@@ -191,16 +191,19 @@
             for(let id in DB_SPECIE) { for(let i=0; i<DB_SPECIE[id].r; i++) pool.push(id); }
             currentMonsterId = pool[Math.floor(Math.random() * pool.length)];
 
+            // Notifica
             if (navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SHOW_NOTIFICATION',
-                    title: 'Segnale Radar!',
-                    body: 'Un mostro è entrato nel tuo raggio!'
+                    title: 'Gotcha!',
+                    body: 'Un mostro è apparso!'
                 });
             }
 
+            // Suono Gotcha e Vibrazione
             try {
-                if (window.navigator.vibrate) window.navigator.vibrate([400, 100, 400]);
+                document.getElementById('audio-gotcha').play();
+                if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500]);
             } catch(e) {}
 
             document.getElementById('radar-container').style.display = 'none';
