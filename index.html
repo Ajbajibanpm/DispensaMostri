@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mostri GO - Stability Edition</title>
+    <title>Mostri GO - Community Edition</title>
     <style>
         :root {
             --primary: #4facfe; --secondary: #00f2fe;
             --yellow: #ffcb05; --blue: #3c5aa6; --green: #2ed573; --red: #ff4757;
+            --dark: #2f3542;
         }
 
         body, html {
@@ -24,10 +25,19 @@
             background: white; border: 3px solid var(--blue);
             border-radius: 50%; width: 55px; height: 55px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 24px; cursor: pointer;
+            font-size: 24px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #camera-toggle-btn { left: 20px; }
         #backpack-btn { right: 20px; }
+
+        #photo-btn, #fuga-btn { 
+            position: absolute; bottom: 65px; z-index: 500;
+            background: white; border-radius: 50%; width: 60px; height: 60px;
+            display: none; align-items: center; justify-content: center;
+            font-size: 28px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        #photo-btn { right: 20px; border: 3px solid var(--primary); }
+        #fuga-btn { left: 20px; border: 3px solid var(--red); }
 
         #camera-window {
             position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
@@ -38,40 +48,29 @@
         }
 
         #camera-stream { width: 100%; height: 100%; object-fit: cover; opacity: 0; position: absolute; }
+        #photo-canvas { display: none; }
 
         #radar-container {
             position: absolute; top:0; left:0; width: 100%; height: 100%;
             background: rgba(47, 53, 66, 0.8); z-index: 5; color: white;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* --- ANIMAZIONE LOTTA --- */
         #target-monster { 
             position: absolute; width: 150px; height: 150px; 
             top: 50%; left: 50%; transform: translate(-50%, -50%); 
             z-index: 10; object-fit: contain; pointer-events: none;
-            display: none; transition: opacity 0.3s;
+            display: none; transition: transform 0.5s ease, opacity 0.5s ease;
         }
 
-        @keyframes fighting {
-            0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-            25% { transform: translate(-48%, -52%) scale(1.05) rotate(3deg); }
-            50% { transform: translate(-52%, -48%) scale(0.95) rotate(-3deg); }
-            75% { transform: translate(-49%, -51%) scale(1.02) rotate(2deg); }
-            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-        }
         .monster-moving { animation: fighting 2s ease-in-out infinite; }
+        .monster-fleeing { transform: translate(-50%, -50%) scale(0) rotate(360deg) !important; opacity: 0; }
+        @keyframes fighting { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -55%) scale(1.05); } }
         
         #pokeball { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; z-index: 20; cursor: pointer; display: none; }
-
-        .ball-throwing { transition: transform 0.6s cubic-bezier(0.1, 0.5, 0.5, 1) !important; }
+        .ball-throwing { transition: transform 0.6s cubic-bezier(0.1, 0.5, 0.5, 1); }
         .ball-shake-center { animation: slowShake 1.2s ease-in-out infinite; top: 50% !important; bottom: auto !important; }
-        @keyframes slowShake {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            25% { transform: translate(-50%, -50%) rotate(-20deg); }
-            75% { transform: translate(-50%, -50%) rotate(20deg); }
-            100% { transform: translate(-50%, -50%) rotate(0deg); }
-        }
+        @keyframes slowShake { 0%, 100% { transform: translate(-50%, -50%) rotate(0deg); } 25% { transform: translate(-50%, -50%) rotate(-20deg); } 75% { transform: translate(-50%, -50%) rotate(20deg); } }
 
         /* --- MODALI --- */
         .modal {
@@ -79,52 +78,97 @@
             width: 95%; height: 85%; background: white; border-radius: 20px; border: 4px solid var(--blue);
             padding: 15px; box-sizing: border-box; overflow-y: auto;
         }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { background: #f1f2f6; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd; }
-        .card img { width: 70px; height: 70px; object-fit: contain; }
-        .silhouette { filter: brightness(0); opacity: 0.6; }
-        .type-tag { font-size: 0.55rem; padding: 2px 5px; border-radius: 4px; color: white; margin: 1px; display: inline-block; text-transform: uppercase; }
-        .t-erba { background: #78C850; } .t-fuoco { background: #F08030; }
-        .t-acqua { background: #6890F0; } .t-elettro { background: #F8D030; color: #000; }
-        .t-psico { background: #F85888; } .t-buio { background: #705848; }
-        .t-roccia { background: #B8A038; } .t-spettro { background: #705898; }
-        .captured-count { font-size: 0.65rem; color: #666; font-weight: bold; margin-top: 5px; }
+        .tab-bar { display: flex; gap: 5px; margin-bottom: 15px; position: sticky; top: 0; background: white; z-index: 10; padding-bottom: 5px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: #eee; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
+        .tab-active { background: var(--blue); color: white; }
 
-        .btn-play { padding:15px 50px; border-radius:30px; border:none; background:var(--yellow); color:var(--blue); font-weight:bold; font-size:1.5rem; cursor:pointer; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card { position: relative; background: #f1f2f6; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd; text-align: center; }
+        .card img { width: 75px; height: 75px; object-fit: contain; cursor: pointer; }
+        .stats-label { font-size: 0.65rem; color: #555; margin-top: 3px; background: #fff; padding: 2px 6px; border-radius: 10px; border: 1px solid #ddd; width: 85%; }
+        
+        /* Nuvoletta Dialogo */
+        .speech-bubble {
+            position: absolute; top: -10px; background: white; border: 2px solid var(--blue);
+            border-radius: 15px; padding: 5px 10px; font-size: 1.2rem; z-index: 100;
+            pointer-events: none; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .release-btn { position: absolute; top: 5px; right: 5px; background: var(--red); color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; }
+        .silhouette { filter: brightness(0); opacity: 0.6; }
+
+        #info-panel {
+            display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%;
+            background: white; z-index: 3000; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+            padding: 20px; box-sizing: border-box; text-align: center;
+        }
+
+        #viewer-overlay {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index: 4000; align-items: center; justify-content: center;
+        }
+        #viewer-img { max-width: 90%; max-height: 80%; border: 4px solid white; border-radius: 10px; }
+
+        #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2500; pointer-events: none; }
+        .flash-active { animation: flashAnim 0.4s ease-out; }
+        @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+        .type-tag { font-size: 0.6rem; padding: 2px 6px; border-radius: 5px; color: white; margin: 2px; text-transform: uppercase; }
+        .t-acqua { background: #6890F0; } .t-fuoco { background: #F08030; } .t-erba { background: #78C850; } .t-elettro { background: #F8D030; color: black; } .t-buio { background: #705848; } .t-spettro { background: #705898; } .t-roccia { background: #B8A038; } .t-psico { background: #F85888; }
     </style>
 </head>
 <body>
 
     <audio id="audio-gotcha" src="https://www.myinstants.com/media/sounds/pokemon-gotcha.mp3" preload="auto"></audio>
+    <div id="flash-overlay"></div>
+    <canvas id="photo-canvas" width="600" height="600"></canvas>
+
+    <div id="viewer-overlay" onclick="this.style.display='none'">
+        <img id="viewer-img" src="">
+    </div>
+
+    <div id="info-panel">
+        <button onclick="document.getElementById('info-panel').style.display='none'" style="float:right; border:none; background:none; font-size:24px;">×</button>
+        <img id="info-img" src="" style="width:120px; height:120px; object-fit: contain;">
+        <h2 id="info-name">???</h2>
+        <div id="info-types"></div>
+        <hr>
+        <p id="info-desc" style="line-height:1.6; color:#444;"></p>
+    </div>
 
     <div id="menu-iniziale" style="position:fixed; width:100%; height:100%; background:var(--primary); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
         <h1 style="font-size:3rem; margin-bottom:20px;">MOSTRI GO</h1>
-        <button class="btn-play" onclick="initGame()">GIOCA</button>
-        <p style="margin-top:20px; font-size:0.9rem; opacity:0.8;">Radar RPG pronto all'azione!</p>
+        <button style="padding:15px 50px; border-radius:30px; border:none; background:var(--yellow); color:var(--blue); font-weight:bold; font-size:1.5rem; cursor:pointer;" onclick="initGame()">GIOCA</button>
     </div>
 
     <div id="game-container">
         <div id="camera-toggle-btn" class="top-btn" onclick="toggleCamera()">📷</div>
         <div id="backpack-btn" class="top-btn" onclick="toggleCollection()">🎒</div>
+        <div id="photo-btn" onclick="takePhoto()">📸</div>
+        <div id="fuga-btn" onclick="runAway()">💨</div>
         
         <div id="camera-window">
             <video id="camera-stream" autoplay playsinline></video>
             <div id="radar-container">
                 <div style="width:70px; height:70px; border:3px solid var(--green); border-radius:50%; animation: pulse 2s infinite;"></div>
-                <p style="margin-top:10px; letter-spacing: 2px;">RICERCA IN CORSO...</p>
+                <p style="margin-top:10px;">RICERCA...</p>
             </div>
-            <img id="target-monster" src="" class="monster-moving">
+            <img id="target-monster" src="" class="monster-moving" crossOrigin="anonymous">
         </div>
         <img id="pokeball" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png">
     </div>
 
     <div id="collection-modal" class="modal">
+        <div id="team-counter" style="text-align:center; font-weight:bold; color:var(--blue); margin-bottom:10px;"></div>
         <div class="tab-bar">
             <button id="tab-squad" class="tab-btn tab-active" onclick="switchTab('squad')">SQUADRA</button>
-            <button id="tab-dex" class="tab-btn" onclick="switchTab('dex')">PAGINE DEX</button>
+            <button id="tab-dex" class="tab-btn" onclick="switchTab('dex')">DEX</button>
+            <button id="tab-gallery" class="tab-btn" onclick="switchTab('gallery')">FOTO</button>
         </div>
         <div id="squad-view" class="grid"></div>
         <div id="dex-view" class="grid" style="display:none;"></div>
+        <div id="gallery-view" class="grid" style="display:none;"></div>
         <button onclick="toggleCollection()" style="width:100%; margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:12px;">CHIUDI</button>
     </div>
 
@@ -132,118 +176,104 @@
         const REPO_BASE_URL = "https://raw.githubusercontent.com/Ajbajibanpm/DispensaMostri/main/";
         
         const DB_SPECIE = {
-            1: { n: "Chtulino", t: ["acqua", "buio"], hp: [40,60], fz: [30,50], r: 20 },
-            2: { n: "Fiammifero", t: ["fuoco"], hp: [30,55], fz: [50,75], r: 40 },
-            3: { n: "Gocciolo", t: ["acqua"], hp: [50,85], fz: [20,40], r: 50 },
-            4: { n: "Fogliasaggia", t: ["erba"], hp: [60,95], fz: [30,50], r: 40 },
-            5: { n: "Elettrogatto", t: ["elettro"], hp: [35,55], fz: [60,85], r: 30 },
-            6: { n: "Rocciolo", t: ["roccia"], hp: [80,120], fz: [40,65], r: 35 },
-            7: { n: "Ombratesta", t: ["spettro", "buio"], hp: [40,60], fz: [65,95], r: 15 },
-            8: { n: "Gelone", t: ["acqua"], hp: [55,80], fz: [45,70], r: 30 },
-            9: { n: "Nuvola", t: ["psico"], hp: [45,70], fz: [50,80], r: 25 },
-            10: { n: "Velenino", t: ["erba"], hp: [40,75], fz: [45,70], r: 40 },
-            11: { n: "Draconiglio", t: ["erba", "psico"], hp: [70,110], fz: [65,90], r: 10 },
-            12: { n: "Sabbioso", t: ["roccia"], hp: [60,90], fz: [45,70], r: 35 },
-            13: { n: "Ferraglia", t: ["roccia"], hp: [90,145], fz: [35,60], r: 20 },
-            14: { n: "Psicocchio", t: ["psico"], hp: [50,75], fz: [75,105], r: 15 },
-            15: { n: "Insettoide", t: ["erba"], hp: [40,65], fz: [40,65], r: 45 },
-            16: { n: "Alieno", t: ["psico", "buio"], hp: [65,100], fz: [70,100], r: 10 },
-            17: { n: "Baffone", t: ["acqua"], hp: [75,115], fz: [30,55], r: 30 },
-            18: { n: "Spettroide", t: ["spettro"], hp: [35,55], fz: [85,115], r: 15 },
-            19: { n: "Gigaslurp", t: ["acqua", "erba"], hp: [110,160], fz: [45,65], r: 5 }
+            1: { n: "Chtulino", t: ["acqua", "buio"], hp: [40,60], fz: [30,50], r: 20, d: "Vive negli abissi fangosi." },
+            2: { n: "Fiammifero", t: ["fuoco"], hp: [30,55], fz: [50,75], r: 40, d: "La sua coda emette calore costante." },
+            3: { n: "Gocciolo", t: ["acqua"], hp: [50,85], fz: [20,40], r: 50, d: "Si mimetizza nelle pozzanghere." },
+            4: { n: "Fogliasaggia", t: ["erba"], hp: [60,95], fz: [30,50], r: 40, d: "Le sue foglie cambiano colore con l'aria." },
+            5: { n: "Elettrogatto", t: ["elettro"], hp: [35,55], fz: [60,85], r: 30, d: "Le sue fusa caricano le batterie." },
+            6: { n: "Rocciolo", t: ["roccia"], hp: [80,120], fz: [40,65], r: 35, d: "Duro come il granito." },
+            7: { n: "Ombratesta", t: ["spettro", "buio"], hp: [40,60], fz: [65,95], r: 15, d: "Gioca a nascondino nelle ombre." },
+            8: { n: "Gelone", t: ["acqua"], hp: [55,80], fz: [45,70], r: 30, d: "Emana un'aura gelida." },
+            9: { n: "Nuvola", t: ["psico"], hp: [45,70], fz: [50,80], r: 25, d: "Prevede il meteo con precisione." },
+            10: { n: "Velenino", t: ["erba"], hp: [40,75], fz: [45,70], r: 40, d: "Attira prede con profumi dolci." },
+            11: { n: "Draconiglio", t: ["erba", "psico"], hp: [70,110], fz: [65,90], r: 10, d: "Comunica telepaticamente con i boschi." },
+            12: { n: "Sabbioso", t: ["roccia"], hp: [60,90], fz: [45,70], r: 35, d: "Crea piccole tempeste di sabbia." },
+            13: { n: "Ferraglia", t: ["roccia"], hp: [90,145], fz: [35,60], r: 20, d: "Indistruttibile e pesante." },
+            14: { n: "Psicocchio", t: ["psico"], hp: [50,75], fz: [75,105], r: 15, d: "Vede attraverso la materia solida." },
+            15: { n: "Insettoide", t: ["erba"], hp: [40,65], fz: [40,65], r: 45, d: "Rapido e quasi invisibile." },
+            16: { n: "Alieno", t: ["psico", "buio"], hp: [65,100], fz: [70,100], r: 10, d: "I suoi pensieri sono in radiofrequenze." },
+            17: { n: "Baffone", t: ["acqua"], hp: [75,115], fz: [30,55], r: 30, d: "Percepisce vibrazioni nell'acqua." },
+            18: { n: "Spettroide", t: ["spettro"], hp: [35,55], fz: [85,115], r: 15, d: "Attraversa i muri senza sforzo." },
+            19: { n: "Gigaslurp", t: ["acqua", "erba"], hp: [110,160], fz: [45,65], r: 5, d: "Galleggia mangiando alghe." },
+            20: { n: "Vulcanico", t: ["fuoco", "roccia"], hp: [80,110], fz: [60,90], r: 15, d: "Emette nuvole di vapore bollente." },
+            21: { n: "Lampo", t: ["elettro"], hp: [40,60], fz: [90,120], r: 10, d: "Lascia una scia di fulmini." },
+            22: { n: "Cristallino", t: ["roccia", "psico"], hp: [70,100], fz: [50,80], r: 10, d: "Mostra frammenti del futuro." },
+            23: { n: "Nebuloso", t: ["spettro"], hp: [45,65], fz: [70,100], r: 15, d: "Si dissolve in nebbia fitta." },
+            24: { n: "Boschivo", t: ["erba"], hp: [90,130], fz: [40,70], r: 20, d: "Si mimetizza come un tronco." },
+            25: { n: "Abissale", t: ["acqua", "spettro"], hp: [100,150], fz: [60,85], r: 5, d: "Attira prede con la lanterna." }
         };
 
         const NOMI_M = ["Claudio", "Ambrogio", "Kevin", "Gennaro", "Ugo", "Renato", "Loris", "Tiziano"];
         const NOMI_F = ["Claudia", "Mariantonia", "Giuditta", "Enrica", "Sonia", "Tea", "Ivana", "Beatrice"];
+        const FRASI = ["✨ Hi!", "💤 Zzz", "🔥 Wow!", "🥗 Yum", "🎮 Play?", "💧 Glub", "⚡ Zap!", "💖 Love"];
 
         let squadra = JSON.parse(localStorage.getItem('mostri_squadra')) || [];
-        // Pokedex ora salva il numero di catture: { id: numero }
-        let pokedex = JSON.parse(localStorage.getItem('mostri_dex_counts')) || {};
+        let pokedexCounts = JSON.parse(localStorage.getItem('mostri_dex_counts')) || {};
+        let galleria = JSON.parse(localStorage.getItem('mostri_foto')) || [];
         let currentMonsterId = null;
         let videoStream = null;
         let isAR = true;
-        let isSearching = false; // Stato per evitare spawn multipli
-
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 
         async function initGame() {
-            if ("Notification" in window) { Notification.requestPermission(); }
             document.getElementById('menu-iniziale').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
             startSearchPhase();
         }
 
         function startSearchPhase() {
-            if (squadra.length >= 6) {
-                alert("Squadra piena! Libera un mostro per continuare la ricerca.");
-                return;
-            }
-            if (isSearching) return; // Evita di far partire due timer
-
-            isSearching = true;
             document.getElementById('radar-container').style.display = 'flex';
             document.getElementById('target-monster').style.display = 'none';
+            document.getElementById('target-monster').classList.remove('monster-fleeing');
             document.getElementById('pokeball').style.display = 'none';
-
-            // Il timer parte qui e non viene richiamato finché non finisce la cattura
-            setTimeout(notifyArrival, (Math.floor(Math.random() * 15) + 10) * 1000);
+            document.getElementById('photo-btn').style.display = 'none';
+            document.getElementById('fuga-btn').style.display = 'none';
+            setTimeout(notifyArrival, (Math.floor(Math.random() * 5) + 4) * 1000);
         }
 
         function notifyArrival() {
-            isSearching = false; // La ricerca è finita, ora siamo in fase cattura
             let pool = [];
             for(let id in DB_SPECIE) { for(let i=0; i<DB_SPECIE[id].r; i++) pool.push(id); }
             currentMonsterId = pool[Math.floor(Math.random() * pool.length)];
-
-            if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'SHOW_NOTIFICATION',
-                    title: 'Gotcha!',
-                    body: 'Un mostro è apparso vicino a te!'
-                });
-            }
-
-            try {
-                document.getElementById('audio-gotcha').play();
-                if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500]);
-            } catch(e) {}
-
             document.getElementById('radar-container').style.display = 'none';
-            const monsterImg = document.getElementById('target-monster');
-            monsterImg.src = `${REPO_BASE_URL}${currentMonsterId}.png`;
-            monsterImg.style.display = 'block';
-            monsterImg.style.opacity = '1';
+            const mImg = document.getElementById('target-monster');
+            mImg.src = `${REPO_BASE_URL}${currentMonsterId}.png`;
+            mImg.style.display = 'block';
+            mImg.style.opacity = '1';
             document.getElementById('pokeball').style.display = 'block';
+            document.getElementById('photo-btn').style.display = 'flex';
+            document.getElementById('fuga-btn').style.display = 'flex';
             if(isAR) startCamera();
         }
 
-        async function startCamera() {
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                document.getElementById('camera-stream').srcObject = videoStream;
-                document.getElementById('camera-stream').style.opacity = "1";
-            } catch (e) {}
+        function runAway() {
+            document.getElementById('target-monster').classList.add('monster-fleeing');
+            setTimeout(startSearchPhase, 600);
         }
 
-        function stopCamera() { if (videoStream) videoStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-stream').style.opacity = "0"; videoStream = null; }
-        function toggleCamera() { if(videoStream) { stopCamera(); isAR = false; } else startCamera(); }
+        function takePhoto() {
+            const canvas = document.getElementById('photo-canvas');
+            const ctx = canvas.getContext('2d');
+            const video = document.getElementById('camera-stream');
+            const monster = document.getElementById('target-monster');
+            document.getElementById('flash-overlay').classList.add('flash-active');
+            setTimeout(() => document.getElementById('flash-overlay').classList.remove('flash-active'), 400);
+            if (videoStream && isAR) { ctx.drawImage(video, 0, 0, 600, 600); } 
+            else { ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,600,600); ctx.fillStyle = "#2ed573"; ctx.fillRect(0,400,600,200); }
+            ctx.drawImage(monster, 150, 150, 300, 300);
+            galleria.unshift({ id: Date.now(), data: canvas.toDataURL("image/png") });
+            localStorage.setItem('mostri_foto', JSON.stringify(galleria));
+        }
 
         function throwBall() {
+            if (squadra.length >= 6) { alert("Squadra piena! Libera un mostro nello zaino."); return; }
             const ball = document.getElementById('pokeball');
-            if (ball.classList.contains('ball-throwing')) return;
             ball.classList.add('ball-throwing');
             ball.style.transform = `translateX(-50%) translateY(-230px) scale(0.6)`;
-
             setTimeout(() => {
                 document.getElementById('target-monster').style.opacity = '0';
                 ball.classList.remove('ball-throwing');
                 ball.classList.add('ball-shake-center');
-                let shakes = 0;
-                const interval = setInterval(() => {
-                    shakes++;
-                    if (Math.random() > 0.8) { clearInterval(interval); failCapture(); }
-                    else if (shakes === 3) { clearInterval(interval); completeCapture(); }
-                }, 1200);
+                setTimeout(() => { if (Math.random() > 0.2) completeCapture(); else failCapture(); }, 2000);
             }, 600);
         }
 
@@ -259,86 +289,85 @@
             ball.classList.remove('ball-shake-center');
             ball.style.transform = `translateX(-50%) translateY(0)`;
             ball.style.display = 'none';
-
             const sp = DB_SPECIE[currentMonsterId];
             const isM = Math.random() > 0.5;
-            const nuovo = {
+            const hp = Math.floor(Math.random() * (sp.hp[1] - sp.hp[0] + 1)) + sp.hp[0];
+            const fz = Math.floor(Math.random() * (sp.fz[1] - sp.fz[0] + 1)) + sp.fz[0];
+
+            squadra.push({
                 uid: Date.now(), id: currentMonsterId, specie: sp.n,
                 soprannome: isM ? NOMI_M[Math.floor(Math.random()*NOMI_M.length)] : NOMI_F[Math.floor(Math.random()*NOMI_F.length)],
-                sesso: isM ? 'M' : 'F',
-                hp: Math.floor(Math.random() * (sp.hp[1]-sp.hp[0]+1)) + sp.hp[0],
-                fz: Math.floor(Math.random() * (sp.fz[1]-sp.fz[0]+1)) + sp.fz[0],
-                tipi: sp.t
-            };
-
-            // Aggiorna contatore Dex
-            pokedex[currentMonsterId] = (pokedex[currentMonsterId] || 0) + 1;
-            
-            squadra.push(nuovo);
-            localStorage.setItem('mostri_squadra', JSON.stringify(squadra));
-            localStorage.setItem('mostri_dex_counts', JSON.stringify(pokedex));
-            
-            // IMPORTANTE: Solo dopo la cattura facciamo ripartire la ricerca se c'è spazio
-            if (squadra.length >= 6) {
-                toggleCollection('squad');
-            } else {
-                startSearchPhase();
-            }
+                sesso: isM ? 'M' : 'F', hp: hp, fz: fz
+            });
+            pokedexCounts[currentMonsterId] = (pokedexCounts[currentMonsterId] || 0) + 1;
+            saveData();
+            startSearchPhase();
         }
 
-        function releaseMonster(uid, nome) {
-            if(confirm(`Liberare ${nome}?`)) {
-                const eraPieno = squadra.length >= 6;
-                squadra = squadra.filter(m => m.uid !== uid);
-                localStorage.setItem('mostri_squadra', JSON.stringify(squadra));
-                updateViews();
-                
-                // Se abbiamo liberato spazio, facciamo ripartire la ricerca
-                if(eraPieno && squadra.length < 6) {
-                    toggleCollection(); // Chiude il modale
-                    startSearchPhase();
-                }
-            }
+        function talk(element) {
+            const existing = element.parentNode.querySelector('.speech-bubble');
+            if (existing) existing.remove();
+            const bubble = document.createElement('div');
+            bubble.className = 'speech-bubble';
+            bubble.innerText = FRASI[Math.floor(Math.random() * FRASI.length)];
+            element.parentNode.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 2000);
         }
 
         function updateViews() {
+            document.getElementById('team-counter').innerText = `SQUADRA: ${squadra.length}/6`;
             document.getElementById('squad-view').innerHTML = squadra.map(m => `
                 <div class="card">
-                    <img src="${REPO_BASE_URL}${m.id}.png">
+                    <button class="release-btn" onclick="releaseMonster(${m.uid})">🗑️</button>
+                    <img src="${REPO_BASE_URL}${m.id}.png" onclick="talk(this)">
                     <strong>${m.soprannome}</strong>
-                    <div style="font-size:0.7rem;">${m.specie} <span style="color:${m.sesso==='M'?'#0984e3':'#fd79a8'}">${m.sesso==='M'?'♂':'♀'}</span></div>
-                    <div>${m.tipi.map(t => `<span class="type-tag t-${t}">${t}</span>`).join('')}</div>
-                    <div style="font-size:0.7rem;">HP: ${m.hp} | FZ: ${m.fz}</div>
-                    <button style="background:var(--red); color:white; border:none; border-radius:8px; width:100%; margin-top:5px; padding:5px;" onclick="releaseMonster(${m.uid}, '${m.soprannome}')">LIBERA</button>
+                    <div style="font-size:0.6rem;">${m.specie} <span style="color:${m.sesso==='M'?'#0984e3':'#fd79a8'}">${m.sesso==='M'?'♂':'♀'}</span></div>
+                    <div class="stats-label">❤️ HP: ${m.hp}</div>
+                    <div class="stats-label">⚔️ Forza: ${m.fz}</div>
                 </div>
             `).join('');
 
             document.getElementById('dex-view').innerHTML = Object.keys(DB_SPECIE).map(id => {
-                const s = DB_SPECIE[id]; 
-                const catturati = pokedex[id] || 0;
+                const count = pokedexCounts[id] || 0;
                 return `
-                    <div class="card">
-                        <img src="${REPO_BASE_URL}${id}.png" class="${catturati > 0 ? '' : 'silhouette'}">
-                        <strong>${catturati > 0 ? s.n : '???'}</strong>
-                        <div class="captured-count">${catturati > 0 ? 'Catturati: ' + catturati : 'Mai visto'}</div>
+                    <div class="card" onclick="showInfo(${id})">
+                        <img src="${REPO_BASE_URL}${id}.png" class="${count > 0 ? '' : 'silhouette'}">
+                        <strong>${count > 0 ? DB_SPECIE[id].n : '???'}</strong>
+                        ${count > 0 ? `<div style="font-size:0.6rem; font-weight:bold;">Presi: ${count}</div>` : ''}
                     </div>
                 `;
             }).join('');
+
+            document.getElementById('gallery-view').innerHTML = galleria.map(p => `
+                <img src="${p.data}" style="width:100%; height:100px; object-fit:cover; border-radius:10px; border:1px solid #ddd;" 
+                onclick="document.getElementById('viewer-img').src='${p.data}'; document.getElementById('viewer-overlay').style.display='flex'">
+            `).join('');
         }
 
-        function switchTab(tab) {
-            document.getElementById('squad-view').style.display = tab === 'squad' ? 'grid' : 'none';
-            document.getElementById('dex-view').style.display = tab === 'dex' ? 'grid' : 'none';
-            document.getElementById('tab-squad').className = 'tab-btn ' + (tab === 'squad' ? 'tab-active' : '');
-            document.getElementById('tab-dex').className = 'tab-btn ' + (tab === 'dex' ? 'tab-active' : '');
-            updateViews();
+        function showInfo(id) {
+            const count = pokedexCounts[id] || 0;
+            const data = DB_SPECIE[id];
+            document.getElementById('info-img').src = `${REPO_BASE_URL}${id}.png`;
+            document.getElementById('info-img').className = count > 0 ? "" : "silhouette";
+            document.getElementById('info-name').innerText = count > 0 ? data.n : "???";
+            document.getElementById('info-types').innerHTML = count > 0 ? data.t.map(t => `<span class="type-tag t-${t}">${t}</span>`).join('') : "";
+            document.getElementById('info-desc').innerText = count > 0 ? data.d : "Cattura questo mostro per sbloccare le informazioni.";
+            document.getElementById('info-panel').style.display = 'block';
         }
 
-        function toggleCollection(tab) {
-            const m = document.getElementById('collection-modal');
-            m.style.display = (m.style.display === 'block') ? 'none' : 'block';
-            if(tab) switchTab(tab); else updateViews();
+        function releaseMonster(uid) {
+            if(confirm("Vuoi liberare questo mostro?")) {
+                squadra = squadra.filter(m => m.uid !== uid);
+                saveData(); updateViews();
+            }
         }
+
+        function saveData() { localStorage.setItem('mostri_squadra', JSON.stringify(squadra)); localStorage.setItem('mostri_dex_counts', JSON.stringify(pokedexCounts)); }
+        async function startCamera() { try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); document.getElementById('camera-stream').srcObject = videoStream; document.getElementById('camera-stream').style.opacity = "1"; } catch (e) {} }
+        function stopCamera() { if (videoStream) videoStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-stream').style.opacity = "0"; videoStream = null; }
+        function toggleCamera() { if(videoStream) { stopCamera(); isAR = false; } else { isAR = true; startCamera(); } }
+        function switchTab(tab) { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active')); document.getElementById('tab-' + tab).classList.add('tab-active'); document.getElementById('squad-view').style.display = tab === 'squad' ? 'grid' : 'none'; document.getElementById('dex-view').style.display = tab === 'dex' ? 'grid' : 'none'; document.getElementById('gallery-view').style.display = tab === 'gallery' ? 'grid' : 'none'; updateViews(); }
+        function toggleCollection() { const m = document.getElementById('collection-modal'); m.style.display = (m.style.display === 'block') ? 'none' : 'block'; updateViews(); }
 
         document.getElementById('pokeball').onclick = throwBall;
     </script>
