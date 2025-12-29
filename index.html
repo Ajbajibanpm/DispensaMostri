@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mostri GO - Community Edition</title>
+    <title>Mostri GO - Journal Edition</title>
     <style>
         :root {
             --primary: #4facfe; --secondary: #00f2fe;
@@ -87,7 +87,6 @@
         .card img { width: 75px; height: 75px; object-fit: contain; cursor: pointer; }
         .stats-label { font-size: 0.65rem; color: #555; margin-top: 3px; background: #fff; padding: 2px 6px; border-radius: 10px; border: 1px solid #ddd; width: 85%; }
         
-        /* Nuvoletta Dialogo */
         .speech-bubble {
             position: absolute; top: -10px; background: white; border: 2px solid var(--blue);
             border-radius: 15px; padding: 5px 10px; font-size: 1.2rem; z-index: 100;
@@ -95,20 +94,47 @@
         }
         @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        .release-btn { position: absolute; top: 5px; right: 5px; background: var(--red); color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; }
+        .release-btn, .delete-photo-btn { position: absolute; top: 5px; right: 5px; background: var(--red); color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
         .silhouette { filter: brightness(0); opacity: 0.6; }
+
+        /* --- VIEWER FOTO & NOTE --- */
+        #viewer-overlay {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: black; z-index: 4000; flex-direction: column;
+        }
+        .viewer-container {
+            flex-grow: 1; width: 100%; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+        }
+        #viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .retro-dialog-box {
+            position: absolute; bottom: 20px; left: 5%; width: 90%;
+            background: white; border: 4px solid #333; border-radius: 10px;
+            box-shadow: inset -3px -3px 0px #888, inset 3px 3px 0px #eee;
+            padding: 15px; box-sizing: border-box; display: none; z-index: 4010;
+        }
+        .retro-textarea {
+            width: 100%; max-height: 100px;
+            overflow-y: auto; border: none; outline: none;
+            font-family: 'Courier New', monospace; font-size: 1.1rem; font-weight: bold;
+            line-height: 1.4; color: #333; resize: none; background: transparent;
+        }
+        .retro-confirm-btn {
+            display: none; margin: 10px 0 0 auto;
+            background: #eee; border: 2px solid #333; padding: 5px 15px;
+            font-family: 'Courier New', monospace; font-weight: bold; cursor: pointer;
+        }
+
+        .viewer-nav {
+            height: 70px; background: #111; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-btn { background: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; font-size: 0.9rem; }
 
         #info-panel {
             display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%;
             background: white; z-index: 3000; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
             padding: 20px; box-sizing: border-box; text-align: center;
         }
-
-        #viewer-overlay {
-            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.9); z-index: 4000; align-items: center; justify-content: center;
-        }
-        #viewer-img { max-width: 90%; max-height: 80%; border: 4px solid white; border-radius: 10px; }
 
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2500; pointer-events: none; }
         .flash-active { animation: flashAnim 0.4s ease-out; }
@@ -124,8 +150,18 @@
     <div id="flash-overlay"></div>
     <canvas id="photo-canvas" width="600" height="600"></canvas>
 
-    <div id="viewer-overlay" onclick="this.style.display='none'">
-        <img id="viewer-img" src="">
+    <div id="viewer-overlay">
+        <div class="viewer-container">
+            <img id="viewer-img" src="">
+            <div id="note-box" class="retro-dialog-box">
+                <textarea id="note-input" class="retro-textarea" placeholder="Scrivi una nota..." readonly></textarea>
+                <button id="save-note-btn" class="retro-confirm-btn" onclick="saveNote()">CONFERMA</button>
+            </div>
+        </div>
+        <div class="viewer-nav">
+            <button class="nav-btn" onclick="toggleNoteEdit()">📝 NOTE</button>
+            <button class="nav-btn" style="background:var(--red); color:white;" onclick="closeViewer()">CHIUDI</button>
+        </div>
     </div>
 
     <div id="info-panel">
@@ -211,6 +247,7 @@
         let pokedexCounts = JSON.parse(localStorage.getItem('mostri_dex_counts')) || {};
         let galleria = JSON.parse(localStorage.getItem('mostri_foto')) || [];
         let currentMonsterId = null;
+        let currentPhotoId = null;
         let videoStream = null;
         let isAR = true;
 
@@ -260,7 +297,7 @@
             if (videoStream && isAR) { ctx.drawImage(video, 0, 0, 600, 600); } 
             else { ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,600,600); ctx.fillStyle = "#2ed573"; ctx.fillRect(0,400,600,200); }
             ctx.drawImage(monster, 150, 150, 300, 300);
-            galleria.unshift({ id: Date.now(), data: canvas.toDataURL("image/png") });
+            galleria.unshift({ id: Date.now(), data: canvas.toDataURL("image/png"), nota: "" });
             localStorage.setItem('mostri_foto', JSON.stringify(galleria));
         }
 
@@ -314,6 +351,64 @@
             setTimeout(() => bubble.remove(), 2000);
         }
 
+        /* --- LOGICA VIEWER --- */
+        function openViewer(id) {
+            currentPhotoId = id;
+            const photo = galleria.find(p => p.id === id);
+            document.getElementById('viewer-img').src = photo.data;
+            
+            const area = document.getElementById('note-input');
+            area.value = photo.nota || "";
+            area.readOnly = true; // Modalità lettura di default
+            
+            document.getElementById('viewer-overlay').style.display = 'flex';
+            document.getElementById('save-note-btn').style.display = 'none';
+            document.getElementById('note-box').style.display = photo.nota ? 'block' : 'none';
+        }
+
+        function closeViewer() { document.getElementById('viewer-overlay').style.display = 'none'; }
+
+        // Entra in modalità modifica
+        function toggleNoteEdit() {
+            const box = document.getElementById('note-box');
+            const area = document.getElementById('note-input');
+            const btn = document.getElementById('save-note-btn');
+            
+            box.style.display = 'block';
+            area.readOnly = false;
+            btn.style.display = 'block';
+            area.focus();
+        }
+
+        // Salva ed esce dalla modalità modifica
+        function saveNote() {
+            const photo = galleria.find(p => p.id === currentPhotoId);
+            const area = document.getElementById('note-input');
+            const btn = document.getElementById('save-note-btn');
+
+            if(photo) {
+                photo.nota = area.value;
+                localStorage.setItem('mostri_foto', JSON.stringify(galleria));
+                
+                area.readOnly = true; // Torna in sola lettura
+                btn.style.display = 'none'; // Nasconde il tasto conferma
+                
+                // Se la nota è vuota, nasconde del tutto il box al termine del salvataggio
+                if(!photo.nota) document.getElementById('note-box').style.display = 'none';
+                
+                updateViews();
+            }
+        }
+
+        function deletePhoto(id, e) {
+            e.stopPropagation();
+            if(confirm("Eliminare questa foto?")) {
+                galleria = galleria.filter(p => p.id !== id);
+                localStorage.setItem('mostri_foto', JSON.stringify(galleria));
+                updateViews();
+            }
+        }
+
         function updateViews() {
             document.getElementById('team-counter').innerText = `SQUADRA: ${squadra.length}/6`;
             document.getElementById('squad-view').innerHTML = squadra.map(m => `
@@ -339,8 +434,12 @@
             }).join('');
 
             document.getElementById('gallery-view').innerHTML = galleria.map(p => `
-                <img src="${p.data}" style="width:100%; height:100px; object-fit:cover; border-radius:10px; border:1px solid #ddd;" 
-                onclick="document.getElementById('viewer-img').src='${p.data}'; document.getElementById('viewer-overlay').style.display='flex'">
+                <div class="card" style="padding:0; overflow:hidden;">
+                    <button class="delete-photo-btn" onclick="deletePhoto(${p.id}, event)">🗑️</button>
+                    <img src="${p.data}" style="width:100%; height:100px; object-fit:cover; border-radius:10px;" 
+                    onclick="openViewer(${p.id})">
+                    ${p.nota ? '<div style="font-size:0.5rem; font-weight:bold; margin-bottom:5px;">📝 NOTA</div>' : ''}
+                </div>
             `).join('');
         }
 
